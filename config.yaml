@@ -1,0 +1,84 @@
+# ============================================
+# Future-Agent v1.0 配置文件
+# 复制本文件为 config.local.yaml 并填入你的真实路径
+# config.local.yaml 已被 .gitignore 保护，不会泄露隐私
+# ============================================
+
+app:
+  name: "Future-Agent"
+  version: "1.0.0"
+
+# 知识源配置（解耦设计，支持多类型）
+knowledge_source:
+  reader_type: "obsidian"
+  obsidian:
+    vault_path: "/Users/xxx/Library/Mobile Documents/iCloud~md~obsidian/Documents/SecondBrain"
+    # 或 Linux: "/home/xxx/SecondBrain"
+    ignore_folders: ["Daily", "Personal", "Archive"]
+    extract_frontmatter: true
+    extract_wikilinks: true
+  markdown_folder:
+    folder_path: "./demo-vault"    # 演示模式用这个路径
+    file_extensions: [".md"]
+
+# arXiv 配置
+arxiv:
+  categories: ["cs.CL", "cs.LG", "cs.IR", "cs.CV"]
+  max_results: 500                  # 每次抓取最近多少篇
+  date_range_days: 30               # 抓取最近几天的论文
+  cache_dir: "./data/raw/arxiv"
+
+# 文本处理
+processing:
+  chunk_size: 512
+  chunk_overlap: 128
+  min_chunk_length: 50
+
+# 向量化
+embedding:
+  model_name: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+  device: "mps"                    # macOS M系列芯片用 mps；Linux 用 cuda/cpu
+  normalize: true
+  batch_size: 32
+
+# 向量存储
+vector_store:
+  persist_dir: "./data/chroma"
+  distance_fn: "cosine"
+  notes_collection: "my_notes"
+  papers_collection: "arxiv_papers"
+
+# 推荐引擎
+recommendation:
+  daily_paper_count: 5
+  diversity_strategy: "boundary_mix"   # 可选: strong_only | boundary_mix | cross_domain
+  similarity_threshold: 0.65
+
+# 报告生成
+report:
+  template: "./templates/daily_report.md.j2"
+  output_dir: "./data/reports"
+  # 如果设为 obsidian_inbox，则直接写入 Obsidian 的 Inbox 文件夹
+  obsidian_inbox_path: null
+
+# ============================================
+# LLM 配置（v1.0 留空，不影响运行）
+# 未来版本用于：Embedding 升级 / 推荐理由生成 / 全文解析
+# ============================================
+llm:
+  # 是否启用 LLM 增强功能（默认 false，v1.0 强制忽略）
+  enabled: false
+
+  # 提供商选择（预留字段，v1.0 不读取）
+  provider: "openai"   # 可选: openai / zhipu / deepseek / local
+
+  # API 配置（用户自行填入，config.local.yaml 已被 .gitignore 保护）
+  api_key: null
+  base_url: null       # 兼容第三方代理或本地 LLM（如 Ollama / vLLM）
+  model: null
+
+  # 本地 LLM 选项（完全离线，保护隐私）
+  local:
+    backend: "ollama"  # 可选: ollama / llama.cpp / vllm
+    model_name: "qwen2.5:7b"
+    api_url: "http://localhost:11434"
