@@ -6,18 +6,18 @@
 
 app:
   name: "Future-Agent"
-  version: "1.0.0"
+  version: "1.5.0"
 
 # 知识源配置（解耦设计，支持多类型）
 knowledge_source:
-  reader_type: "obsidian"
+  reader_type: "markdown"          # 可选: obsidian | markdown | notion (v1.5)
   obsidian:
     vault_path: "/Users/xxx/Library/Mobile Documents/iCloud~md~obsidian/Documents/SecondBrain"
     # 或 Linux: "/home/xxx/SecondBrain"
     ignore_folders: ["Daily", "Personal", "Archive"]
     extract_frontmatter: true
     extract_wikilinks: true
-  markdown_folder:
+  markdown:
     folder_path: "./demo-vault"    # 演示模式用这个路径
     file_extensions: [".md"]
 
@@ -82,3 +82,23 @@ llm:
     backend: "ollama"  # 可选: ollama / llama.cpp / vllm
     model_name: "qwen2.5:7b"
     api_url: "http://localhost:11434"
+
+# ============================================
+# Self-RAG 配置（v1.5 新增）
+# ============================================
+self_rag:
+  enabled: true
+  beam_size: 2              # 1=greedy, 2=标准 beam search
+  max_segments: 5           # 单份报告最多生成 5 个 recommendation
+  top_k: 10                 # 检索器召回数量
+  retrieve_threshold: 0.5   # 软阈值（prompt-based 阶段预留）
+  is_sup_weight: 1.2       # IsSup 在 beam score 中的权重
+  is_use_weight: 0.8        # IsUse 在 beam score 中的权重
+  llm:
+    provider: "kimi"           # 可选：kimi / openai / custom
+    model: "moonshot-v1-8k"  # kimi 可选 8k/32k/128k；openai 可选 gpt-4o-mini 等
+    api_key: ""              # 留空则读取环境变量 KIMI_API_KEY / OPENAI_API_KEY
+    temperature: 0.0
+    max_tokens: 1024
+    # base_url: ""           # provider=custom 时填写，如本地 vLLM 地址
+

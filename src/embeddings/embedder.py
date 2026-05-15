@@ -18,6 +18,7 @@ import numpy as np
 import torch
 from sentence_transformers import SentenceTransformer
 
+from src.config_loader import project_root
 from src.processors.chunker import Chunk
 
 logger = logging.getLogger("future-agent.embedder")
@@ -39,7 +40,7 @@ class Embedder:
         self.batch_size: int = self.config.get("embedding.batch_size", 32)
 
         # 缓存配置
-        self.cache_dir = Path("./data/processed/embed_cache")
+        self.cache_dir = project_root() / "data" / "processed" / "embed_cache"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
         # 延迟加载模型（避免初始化时耗时）

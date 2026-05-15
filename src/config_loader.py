@@ -37,18 +37,37 @@ class Config:
         return self._raw
 
 
+def project_root() -> Path:
+    """基于当前文件位置推导项目根目录。"""
+    return Path(__file__).resolve().parent.parent
+
+
+def resolve_config_path(path_str: Optional[str]) -> Optional[Path]:
+    """
+    解析配置文件中的路径。
+    相对路径基于项目根目录解析，绝对路径或用户主目录缩写保持不变。
+    """
+    if not path_str:
+        return None
+    p = Path(path_str).expanduser()
+    if not p.is_absolute():
+        p = project_root() / p
+    return p.resolve()
+
+
 def load_config(path: Optional[str] = None) -> Config:
     """
     加载 YAML 配置，优先级：
         1. 显式传入的 path
-        2. ./config.local.yaml（用户私有，已被 .gitignore 保护）
-        3. ./config.yaml（仓库模板）
+        2. <项目根目录>/config.local.yaml（用户私有，已被 .gitignore 保护）
+        3. <项目根目录>/config.yaml（仓库模板）
     """
     if path:
         config_path = Path(path)
     else:
-        local_path = Path("config.local.yaml")
-        template_path = Path("config.yaml")
+        root = project_root()
+        local_path = root / "config.local.yaml"
+        template_path = root / "config.yaml"
         config_path = local_path if local_path.exists() else template_path
 
     if not config_path.exists():

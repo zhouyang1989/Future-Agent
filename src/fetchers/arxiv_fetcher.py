@@ -20,6 +20,7 @@ try:
 except ImportError:
     arxiv = None
 
+from src.config_loader import project_root
 from src.processors.chunker import Chunk
 
 logger = logging.getLogger("future-agent.fetchers")
@@ -56,9 +57,13 @@ class ArxivFetcher:
         self.categories: List[str] = self.config.get(
             "categories", ["cs.CL", "cs.LG", "cs.IR"]
         )
-        self.cache_dir: Path = Path(
+        cache_dir = Path(
             self.config.get("cache_dir", "./data/raw/arxiv")
         )
+        # 相对路径基于项目根目录解析，避免 cwd 差异
+        if not cache_dir.is_absolute():
+            cache_dir = project_root() / cache_dir
+        self.cache_dir = cache_dir
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
         # arXiv 客户端：内置速率限制（3秒间隔）+ 重试

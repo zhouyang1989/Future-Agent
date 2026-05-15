@@ -17,6 +17,7 @@ import chromadb
 import numpy as np
 from chromadb.config import Settings
 
+from src.config_loader import project_root
 from src.processors.chunker import Chunk
 
 logger = logging.getLogger("future-agent.vector_store")
@@ -29,9 +30,13 @@ class VectorStore:
 
     def __init__(self, config: Optional[dict] = None) -> None:
         self.config = config or {}
-        self.persist_dir = Path(
+        persist_dir = Path(
             self.config.get("vector_store.persist_dir", "./data/chroma")
         )
+        # 相对路径基于项目根目录解析，避免 cwd 差异
+        if not persist_dir.is_absolute():
+            persist_dir = project_root() / persist_dir
+        self.persist_dir = persist_dir
         self.distance_fn = self.config.get("vector_store.distance_fn", "cosine")
         self.notes_collection_name = self.config.get(
             "vector_store.notes_collection", "my_notes"

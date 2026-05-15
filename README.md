@@ -18,6 +18,7 @@
   <a href="#features">核心功能</a> •
   <a href="#quickstart">快速开始</a> •
   <a href="#usage">使用指南</a> •
+  <a href="#self-rag">Self-RAG v1.5</a> •
   <a href="#architecture">架构设计</a> •
   <a href="#privacy">隐私保护</a> •
   <a href="#contributing">贡献指南</a>
@@ -49,6 +50,7 @@ Future-Agent 读取你的本地笔记库（Obsidian Vault 或纯 Markdown 文件
 | **多样性约束** | 自动平衡「强相关延续」与「边界拓展」，防止信息茧房 | ✅ |
 | **日报生成** | 生成 Markdown 格式推荐报告，可直接粘贴至 Obsidian Daily Notes | ✅ |
 | **增量更新** | 基于 Chunk ID 实现增量索引，仅处理新增或修改的笔记 | ✅ |
+| **Self-RAG 批判式推荐** | v1.5 新增：通过 LLM 对每篇候选论文做相关性批判（IsRel）、事实校验（IsSup）与效用评估（IsUse），过滤噪声推荐 | ✅ |
 
 ---
 
@@ -180,6 +182,64 @@ python src/cli.py recommend --diversity boundary_mix
 # 可选：strong_only（保守）/ boundary_mix（平衡）/ cross_domain（激进跨界）
 ```
 
+---
+
+<a id="self-rag"></a>
+## 🧠 Self-RAG 批判式推荐（v1.5）
+
+v1.5 在 v1.0 向量检索的基础上，引入 LLM 驱动的三阶段批判链，对候选论文做逐层过滤，显著降低推荐噪声。
+
+### 工作流程
+
+```
+v1.0 Matcher 粗排（本地向量，零 LLM 成本）
+  ↓
+[Retrieve Decision] —— 判断今日候选池是否值得推荐
+  ↓
+[IsRel] —— 逐篇批判：论文是否真正与用户研究相关？
+  ↓
+[生成推荐理由] —— 基于用户笔记上下文，生成中文推荐语
+  ↓
+[IsSup] —— 逐句校验推荐语是否被论文摘要事实支持
+[IsUse] —— 评估论文对用户当前研究的效用分值（1-5 分）
+  ↓
+输出通过批判链的最终推荐日报
+```
+
+### 启用方式
+
+```bash
+# 基础用法（balanced 模式，推荐数量 5 篇）
+python src/cli.py recommend --self-rag
+
+# 指定模式与推荐数量
+python src/cli.py recommend --self-rag --mode strict --top-k 5
+```
+
+### 推理模式说明
+
+| 模式 | IsSup 保留条件 | 适用场景 |
+|------|--------------|----------|
+| `strict` | Fully Supported，或 Partially Supported 且效用 ≥ 4 分 | 精读，要求推荐理由每句话都有摘要依据 |
+| `balanced`（默认）| Fully 或 Partially Supported | 日常使用，兼顾数量与质量 |
+| `creative` | Fully / Partially / No Support | 头脑风暴，允许合理推断 |
+| `fast` | 跳过 IsSup 校验 | 降低 API 调用成本，快速出结果 |
+
+### 配置 LLM
+
+在 `config.local.yaml` 中填入 LLM 配置（v1.0 无需此步骤）：
+
+```yaml
+self_rag:
+  enabled: true
+  llm:
+    provider: "kimi"           # 可选：kimi / openai / custom（本地 vLLM）
+    model: "moonshot-v1-8k"
+    api_key: "your-api-key"    # 或留空，从环境变量 KIMI_API_KEY 读取
+```
+
+> Self-RAG 仅在推荐阶段向 LLM 传输论文摘要片段与笔记摘录，**不会上传完整笔记库**。支持本地 vLLM / Ollama 部署实现 100% 离线运行。
+
 ### 报告输出示例
 
 生成的 Markdown 报告结构如下：
@@ -224,7 +284,7 @@ Future-Agent 采用严格的分层架构，每层只依赖下层：
 ```
 CLI (cli.py)
   ↓
-Engine (matcher.py) + Generators (report_generator.py)
+Engine (matcher.py / self_rag/) + Generators (report_generator.py)
   ↓
 Storage (vector_store.py) + Embeddings (embedder.py)
   ↓
@@ -266,7 +326,13 @@ future-agent/
 │   ├── storage/                # 存储层
 │   │   └── vector_store.py     # VectorStore：ChromaDB 双集合管理
 │   ├── engine/                 # 核心推荐引擎
-│   │   └── matcher.py          # Matcher：相似度计算 + 多样性约束
+│   │   ├── matcher.py          # Matcher：相似度计算 + 多样性约束（v1.0）
+│   │   └── self_rag/           # Self-RAG 批判式推荐引擎（v1.5）
+│   │       ├── self_rag_recommender.py  # 主入口：三阶段批判流程
+│   │       ├── passage_critique.py      # IsRel：相关性批判
+│   │       ├── generation_validator.py  # IsSup / IsUse：事实校验与效用评估
+│   │       ├── llm_wrapper.py           # LLM 客户端（Kimi / OpenAI / vLLM）
+│   │       └── base.py                  # 基础类型（Relevance, SupportLevel）
 │   ├── generators/             # 报告生成层
 │   │   └── report_generator.py # ReportGenerator：Jinja2 → Markdown
 │   ├── config_loader.py        # Config 类（支持点号分隔嵌套键访问）
